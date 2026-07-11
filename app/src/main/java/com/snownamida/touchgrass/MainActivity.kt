@@ -8,7 +8,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.Button
@@ -36,6 +40,9 @@ class MainActivity : AppCompatActivity() {
     private var suppressMode = false
     private var suppressDebug = false
     private var suppressNotif = false
+
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private val saveLimitsRunnable = Runnable { saveLimitsFromFields() }
 
     private val notifPermLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -90,20 +97,19 @@ class MainActivity : AppCompatActivity() {
                 refresh()
             }
 
-        findViewById<Button>(R.id.btn_save_limits).setOnClickListener {
-            fun value(id: Int) = findViewById<EditText>(id).text.toString().trim().toIntOrNull() ?: 0
-            LimitConfig.save(
-                this,
-                Limits(
-                    sessionMin = value(R.id.edit_limit_session),
-                    dailyMin = value(R.id.edit_limit_daily),
-                    weeklyMin = value(R.id.edit_limit_weekly),
-                    remindMin = value(R.id.edit_limit_remind),
-                )
-            )
-            toast("额度已保存")
-            refresh()
+        // 额度改完即存：停顿 600ms 落盘，空值不动原配置
+        val limitWatcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                uiHandler.removeCallbacks(saveLimitsRunnable)
+                uiHandler.postDelayed(saveLimitsRunnable, 600L)
+            }
         }
+        listOf(
+            R.id.edit_limit_session, R.id.edit_limit_daily,
+            R.id.edit_limit_weekly, R.id.edit_limit_remind,
+        ).forEach { findViewById<EditText>(it).addTextChangedListener(limitWatcher) }
 
         findViewById<Button>(R.id.btn_export_rules).setOnClickListener {
             AlertDialog.Builder(this)
@@ -189,6 +195,30 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refresh()
+    }
+
+    override fun onPause() {
+        // 刚改完就切走也不丢：立即落盘
+        uiHandler.removeCallbacks(saveLimitsRunnable)
+        saveLimitsFromFields()
+        super.onPause()
+    }
+
+    private fun saveLimitsFromFields() {
+        val cur = LimitConfig.load(this)
+        fun v(id: Int, fallback: Int) =
+            findViewById<EditText>(id).text.toString().trim().toIntOrNull() ?: fallback
+        val next = Limits(
+            sessionMin = v(R.id.edit_limit_session, cur.sessionMin),
+            dailyMin = v(R.id.edit_limit_daily, cur.dailyMin),
+            weeklyMin = v(R.id.edit_limit_weekly, cur.weeklyMin),
+            remindMin = v(R.id.edit_limit_remind, cur.remindMin),
+        )
+        if (next != cur) {
+            LimitConfig.save(this, next)
+            findViewById<TextView>(R.id.text_today_caption).text = "今日" + quota(next.dailyMin)
+            findViewById<TextView>(R.id.text_week_caption).text = "本周" + quota(next.weeklyMin)
+        }
     }
 
     private fun refresh() {
