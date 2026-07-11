@@ -3,6 +3,7 @@ package com.snownamida.touchgrass.track
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import com.snownamida.touchgrass.AppState
 import com.snownamida.touchgrass.debug.DebugLog
 import com.snownamida.touchgrass.rules.Rule
 import com.snownamida.touchgrass.service.WatcherService
@@ -70,6 +71,7 @@ class SessionTracker(private val service: WatcherService) {
         nextRemindSec = LimitConfig.load(service).remindMin.toLong() * 60
         DebugLog.log("▶ 开始计时「${rule.name}」")
         service.showTimerOverlay { overlayText() }
+        if (AppState.isNotifTimer(service)) TimerNotification.show(service, rule.name, 0)
         handler.removeCallbacks(ticker)
         handler.postDelayed(ticker, 1000L)
     }
@@ -83,6 +85,7 @@ class SessionTracker(private val service: WatcherService) {
         StatsStore.addSeconds(service, rule.id, sec)
         service.hideTimerOverlay()
         service.hideIntervention()
+        TimerNotification.hide(service)
     }
 
     private fun sessionSec() = (SystemClock.elapsedRealtime() - sessionStartMs) / 1000
@@ -115,6 +118,11 @@ class SessionTracker(private val service: WatcherService) {
             nextRemindSec += cfg.remindMin * 60L
             DebugLog.log("🔔 周期提醒：连刷 ${s / 60} 分钟")
             service.flashReminder("🌱 这一波已经刷了 ${s / 60} 分钟")
+        }
+
+        // 通知/灵动岛的文字每分钟刷新一次（chronometer 走秒不依赖这里）
+        if (s > 0 && s % 60 == 0L && AppState.isNotifTimer(service)) {
+            activeRule?.let { TimerNotification.show(service, it.name, s) }
         }
     }
 

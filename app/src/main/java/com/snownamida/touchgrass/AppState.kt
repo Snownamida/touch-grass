@@ -23,6 +23,16 @@ object AppState {
         WatcherService.instance?.applyMode(mode)
     }
 
+    private const val KEY_NOTIF = "notifTimer"
+
+    fun isNotifTimer(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_NOTIF, true)
+
+    fun setNotifTimer(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_NOTIF, enabled).apply()
+    }
+
     private const val KEY_DEBUG = "debugOverlay"
 
     fun isDebug(context: Context): Boolean =

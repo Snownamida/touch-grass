@@ -102,6 +102,13 @@
                     android:layout_marginTop="8dp"
                     android:textAppearance="?attr/textAppearanceBodySmall"
                     android:textColor="?android:attr/textColorSecondary" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_notif"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="通知栏 / 灵动岛计时（实验性）" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

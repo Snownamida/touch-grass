@@ -1,9 +1,12 @@
 package com.snownamida.touchgrass
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.LayoutInflater
@@ -32,6 +35,10 @@ class MainActivity : AppCompatActivity() {
 
     private var suppressMode = false
     private var suppressDebug = false
+    private var suppressNotif = false
+
+    private val notifPermLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     private val exportLauncher =
         registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -140,6 +147,16 @@ class MainActivity : AppCompatActivity() {
             refresh()
         }
 
+        findViewById<MaterialSwitch>(R.id.switch_notif).setOnCheckedChangeListener { _, checked ->
+            if (suppressNotif) return@setOnCheckedChangeListener
+            AppState.setNotifTimer(this, checked)
+            if (checked && Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
         findViewById<MaterialSwitch>(R.id.switch_debug).setOnCheckedChangeListener { _, checked ->
             if (!suppressDebug) AppState.setDebug(this, checked)
         }
@@ -216,6 +233,10 @@ class MainActivity : AppCompatActivity() {
         suppressDebug = true
         findViewById<MaterialSwitch>(R.id.switch_debug).isChecked = AppState.isDebug(this)
         suppressDebug = false
+
+        suppressNotif = true
+        findViewById<MaterialSwitch>(R.id.switch_notif).isChecked = AppState.isNotifTimer(this)
+        suppressNotif = false
 
         val rules = RuleStore.load(this)
         val limits = LimitConfig.load(this)
