@@ -1,28 +1,54 @@
 [
   {
-    "id": "default-bili-story",
+    "id": "71f8849f-99ff-4d1d-b735-7addbe113a43",
     "name": "哔哩哔哩 短视频",
     "packageName": "tv.danmaku.bili",
     "matchers": [
       {
-        "activities": ["com.bilibili.video.story.StoryVideoActivity"],
+        "activities": [
+          "com.bilibili.video.story.StoryVideoActivity"
+        ],
         "requiredIds": [],
         "forbiddenIds": []
       }
     ],
-    "createdAt": 0
+    "createdAt": 1783762775075
   },
   {
-    "id": "default-xhs-video",
+    "id": "0430f626-9c23-469a-bf7b-e9633c40191e",
     "name": "小红书 短视频",
     "packageName": "com.xingin.xhs",
     "matchers": [
       {
-        "activities": ["com.xingin.matrix.detail.activity.DetailFeedActivity"],
+        "activities": [
+          "com.xingin.matrix.detail.activity.DetailFeedActivity"
+        ],
         "requiredIds": [],
         "forbiddenIds": []
       }
     ],
-    "createdAt": 0
+    "createdAt": 1783762786529
+  },
+  {
+    "id": "49b8eedf-c401-4e67-94a2-412ba79a5898",
+    "name": "TikTok 短视频",
+    "packageName": "com.zhiliaoapp.musically",
+    "matchers": [
+      {
+        "activities": [
+          "com.ss.android.ugc.aweme.main.MainActivity"
+        ],
+        "requiredIds": [
+          "com.zhiliaoapp.musically:id\/a5u",
+          "com.zhiliaoapp.musically:id\/a5z",
+          "com.zhiliaoapp.musically:id\/a65"
+        ],
+        "forbiddenIds": [
+          "com.zhiliaoapp.musically:id\/vma",
+          "com.zhiliaoapp.musically:id\/vmb"
+        ]
+      }
+    ],
+    "createdAt": 1783763975363
   }
 ]

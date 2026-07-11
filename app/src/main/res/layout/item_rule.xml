@@ -16,19 +16,19 @@
             android:id="@+id/text_rule_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            android:textAppearance="?attr/textAppearanceTitleSmall" />
 
         <TextView
             android:id="@+id/text_rule_desc"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="12sp" />
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="?android:attr/textColorSecondary" />
     </LinearLayout>
 
     <Button
         android:id="@+id/btn_detail_rule"
-        style="?attr/materialButtonOutlinedStyle"
+        style="@style/Widget.Material3.Button.TextButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:minWidth="0dp"
@@ -36,10 +36,10 @@
 
     <Button
         android:id="@+id/btn_delete_rule"
-        style="?attr/materialButtonOutlinedStyle"
+        style="@style/Widget.Material3.Button.TextButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
         android:minWidth="0dp"
-        android:text="删除" />
+        android:text="删除"
+        android:textColor="?attr/colorError" />
 </LinearLayout>

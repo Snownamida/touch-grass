@@ -21,8 +21,8 @@ android {
         applicationId = "com.snownamida.touchgrass"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.3.0"
+        versionCode = 5
+        versionName = "0.4.0"
     }
 
     signingConfigs {
