@@ -77,9 +77,22 @@ class WatcherService : AccessibilityService() {
         }
     }
 
-    private val screenOffReceiver = object : BroadcastReceiver() {
+    private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (::tracker.isInitialized) tracker.forceEnd()
+            when (intent.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    if (::tracker.isInitialized) tracker.forceEnd()
+                    // 熄屏没有可监测的东西，心跳歇着，别空转一夜
+                    handler.removeCallbacks(heartbeat)
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    if (mode == AppState.Mode.WATCH) {
+                        handler.removeCallbacks(heartbeat)
+                        handler.postDelayed(heartbeat, HEARTBEAT_MS)
+                        scheduleResolve(500L)
+                    }
+                }
+            }
         }
     }
 
@@ -91,8 +104,11 @@ class WatcherService : AccessibilityService() {
         debugEnabled = AppState.isDebug(this)
         DebugLog.log("服务已连接")
         ContextCompat.registerReceiver(
-            this, screenOffReceiver,
-            IntentFilter(Intent.ACTION_SCREEN_OFF),
+            this, screenReceiver,
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_SCREEN_ON)
+            },
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         applyMode(AppState.getMode(this))
@@ -100,7 +116,7 @@ class WatcherService : AccessibilityService() {
 
     override fun onDestroy() {
         if (instance === this) instance = null
-        runCatching { unregisterReceiver(screenOffReceiver) }
+        runCatching { unregisterReceiver(screenReceiver) }
         if (::tracker.isInitialized) tracker.forceEnd()
         captureOverlay?.hide()
         timerOverlay?.hide()
