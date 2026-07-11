@@ -1,7 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+// 签名信息：本地读 keystore.properties（gitignored），CI 读环境变量（GitHub Secrets）
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
+fun signProp(name: String): String? = System.getenv(name) ?: keystoreProps.getProperty(name)
 
 android {
     namespace = "com.snownamida.touchgrass"
@@ -15,9 +25,22 @@ android {
         versionName = "0.3.0"
     }
 
+    signingConfigs {
+        val ksFile = rootProject.file(signProp("KEYSTORE_FILE") ?: "release.keystore")
+        if (ksFile.exists()) {
+            create("release") {
+                storeFile = ksFile
+                storePassword = signProp("KEYSTORE_PASSWORD")
+                keyAlias = signProp("KEY_ALIAS") ?: "touchgrass"
+                keyPassword = signProp("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
     compileOptions {
