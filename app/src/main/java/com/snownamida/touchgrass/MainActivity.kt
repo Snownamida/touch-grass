@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -73,6 +74,17 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btn_accessibility).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+
+        findViewById<Button>(R.id.btn_miui_settings).setOnClickListener {
+            startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+            )
+        }
+        findViewById<Button>(R.id.btn_miui_dismiss).setOnClickListener {
+            getSharedPreferences("touchgrass", MODE_PRIVATE)
+                .edit().putBoolean("miuiHintDismissed", true).apply()
+            refresh()
         }
 
         findViewById<MaterialButtonToggleGroup>(R.id.toggle_mode)
@@ -268,6 +280,12 @@ class MainActivity : AppCompatActivity() {
         findViewById<MaterialSwitch>(R.id.switch_notif).isChecked = AppState.isNotifTimer(this)
         suppressNotif = false
 
+        // MIUI/HyperOS 白名单引导（实测不开自启动+省电无限制会被冻结）
+        val showMiuiHint = Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true) &&
+            !getSharedPreferences("touchgrass", MODE_PRIVATE).getBoolean("miuiHintDismissed", false)
+        findViewById<View>(R.id.row_miui_hint).visibility =
+            if (showMiuiHint) View.VISIBLE else View.GONE
+
         val rules = RuleStore.load(this)
         val limits = LimitConfig.load(this)
 
@@ -280,9 +298,9 @@ class MainActivity : AppCompatActivity() {
         fillLimit(R.id.edit_limit_weekly, limits.weeklyMin)
         fillLimit(R.id.edit_limit_remind, limits.remindMin)
 
-        // 统计
-        val byRule = StatsStore.todayByRule(this)
-        val todaySec = byRule.values.sum()
+        // 统计（按包名记账）
+        val byPkg = StatsStore.todayByKey(this)
+        val todaySec = byPkg.values.sum()
         val weekSec = StatsStore.weekTotalSeconds(this)
         findViewById<TextView>(R.id.text_today_big).text = fmtBig(todaySec)
         findViewById<TextView>(R.id.text_today_caption).text = "今日" + quota(limits.dailyMin)
@@ -290,7 +308,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.text_week_caption).text = "本周" + quota(limits.weeklyMin)
 
         val ruleLines = rules.mapNotNull { r ->
-            val s = byRule[r.id] ?: 0L
+            val s = byPkg[r.packageName] ?: 0L
             if (s > 0) "· ${r.name}：${fmtBig(s)}" else null
         }
         val statsRules = findViewById<TextView>(R.id.text_stats_rules)

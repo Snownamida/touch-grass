@@ -1,6 +1,7 @@
 package com.snownamida.touchgrass.overlay
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Handler
@@ -44,10 +45,28 @@ class TimerOverlay(private val service: AccessibilityService) {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT,
             )
-            lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            lp.y = dp(48)
+            // 记住上次拖到的位置；没拖过则默认顶部居中
+            val prefs = service.getSharedPreferences("touchgrass", Context.MODE_PRIVATE)
+            val savedX = prefs.getInt("timerOverlayX", Int.MIN_VALUE)
+            val savedY = prefs.getInt("timerOverlayY", Int.MIN_VALUE)
+            if (savedX != Int.MIN_VALUE && savedY != Int.MIN_VALUE) {
+                lp.gravity = Gravity.TOP or Gravity.START
+                lp.x = savedX
+                lp.y = savedY
+            } else {
+                lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                lp.y = dp(48)
+            }
 
-            DragHelper.makeDraggable(tv, tv, lp, wm)
+            DragHelper.makeDraggable(tv, tv, lp, wm) {
+                // 落点统一换算成 TOP|START 坐标系再记忆
+                val centered =
+                    (lp.gravity and Gravity.HORIZONTAL_GRAVITY_MASK) == Gravity.CENTER_HORIZONTAL
+                val absX = if (centered) {
+                    (service.resources.displayMetrics.widthPixels - tv.width) / 2 + lp.x
+                } else lp.x
+                prefs.edit().putInt("timerOverlayX", absX).putInt("timerOverlayY", lp.y).apply()
+            }
             wm.addView(tv, lp)
             view = tv
         }

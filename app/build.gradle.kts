@@ -21,8 +21,8 @@ android {
         applicationId = "com.snownamida.touchgrass"
         minSdk = 26
         targetSdk = 34
-        versionCode = 8
-        versionName = "0.5.0"
+        versionCode = 9
+        versionName = "0.5.1"
     }
 
     signingConfigs {
@@ -56,4 +56,8 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
+
+    testImplementation("junit:junit:4.13.2")
+    // JVM 单测里 android.jar 的 org.json 是 stub，换真实现
+    testImplementation("org.json:json:20240303")
 }

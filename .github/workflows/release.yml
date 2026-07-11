@@ -28,6 +28,9 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
+      - name: Unit tests
+        run: ./gradlew testReleaseUnitTest
+
       - name: Build release APK
         run: ./gradlew assembleRelease
         env:

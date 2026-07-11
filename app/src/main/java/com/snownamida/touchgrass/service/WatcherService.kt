@@ -24,8 +24,8 @@ import com.snownamida.touchgrass.overlay.InterventionOverlay
 import com.snownamida.touchgrass.overlay.KeepAliveOverlay
 import com.snownamida.touchgrass.overlay.ReminderOverlay
 import com.snownamida.touchgrass.overlay.TimerOverlay
-import com.snownamida.touchgrass.rules.Matcher
 import com.snownamida.touchgrass.rules.Rule
+import com.snownamida.touchgrass.rules.RuleEngine
 import com.snownamida.touchgrass.rules.RuleGenerator
 import com.snownamida.touchgrass.rules.RuleStore
 import com.snownamida.touchgrass.track.SessionTracker
@@ -230,6 +230,13 @@ class WatcherService : AccessibilityService() {
 
     private fun evaluate() {
         val pkg = currentPackage
+        // 一次评估内缓存 root 查询，多个 id 共享一次窗口获取
+        val rootCache = HashMap<String, AccessibilityNodeInfo?>()
+        val hasNode: (String, String) -> Boolean? = { p, id ->
+            if (!rootCache.containsKey(p)) rootCache[p] = findRootFor(p)
+            rootCache[p]?.let { !it.findAccessibilityNodeInfosByViewId(id).isNullOrEmpty() }
+        }
+
         var matched: Rule? = null
         val reason: String
         if (pkg == null) {
@@ -239,8 +246,9 @@ class WatcherService : AccessibilityService() {
             if (rule == null) {
                 reason = "无规则"
             } else {
-                matched = if (ruleMatches(rule)) rule else null
-                reason = if (matched != null) "命中「${rule.name}」" else explainMiss(rule)
+                matched = if (RuleEngine.matches(rule, currentActivity, hasNode)) rule else null
+                reason = if (matched != null) "命中「${rule.name}」"
+                else RuleEngine.explainMiss(rule, currentActivity, hasNode)
             }
         }
         val line = "${pkg?.substringAfterLast('.') ?: "?"}/" +
@@ -251,51 +259,6 @@ class WatcherService : AccessibilityService() {
         }
         debugOverlay?.setText(line)
         tracker.onEvaluated(matched)
-    }
-
-    /** 未命中时给出每个条件组失败在哪一步，调试用。 */
-    private fun explainMiss(rule: Rule): String {
-        val act = currentActivity
-        val reasons = rule.matchers.mapIndexed { i, m ->
-            val tag = "组${i + 1}"
-            when {
-                m.activities.isNotEmpty() && act == null -> "$tag:未知activity"
-                m.activities.isNotEmpty() && act !in m.activities -> "$tag:activity不符"
-                m.needsNodeCheck -> {
-                    val root = findRootFor(rule.packageName)
-                    if (root == null) "$tag:拿不到窗口"
-                    else {
-                        val missing = m.requiredIds.firstOrNull {
-                            root.findAccessibilityNodeInfosByViewId(it).isNullOrEmpty()
-                        }
-                        if (missing != null) "$tag:缺${missing.substringAfterLast('/')}"
-                        else "$tag:命中了排除id"
-                    }
-                }
-                else -> "$tag:?"
-            }
-        }
-        return "未命中(${reasons.joinToString(";")})"
-    }
-
-    private fun ruleMatches(rule: Rule): Boolean =
-        rule.matchers.any { matcherMatches(rule.packageName, it) }
-
-    private fun matcherMatches(pkg: String, m: Matcher): Boolean {
-        if (m.activities.isNotEmpty()) {
-            val act = currentActivity ?: return false
-            if (act !in m.activities) return false
-        }
-        if (!m.needsNodeCheck) return true
-
-        val root = findRootFor(pkg) ?: return false
-        for (id in m.requiredIds) {
-            if (root.findAccessibilityNodeInfosByViewId(id).isNullOrEmpty()) return false
-        }
-        for (id in m.forbiddenIds) {
-            if (!root.findAccessibilityNodeInfosByViewId(id).isNullOrEmpty()) return false
-        }
-        return true
     }
 
     private fun findRootFor(pkg: String): AccessibilityNodeInfo? {
@@ -339,7 +302,21 @@ class WatcherService : AccessibilityService() {
                 }
             }
             updateDebugOverlay()
+            updateEventFilter()
         }
+    }
+
+    /**
+     * 监测模式只监听有规则的包的事件，省电；捕捉模式要采任意 app，全量监听。
+     * 只影响事件投递——windows 查询、心跳轮询、悬浮窗能力都不受 packageNames 限制，
+     * 离开规则 app 后由心跳（3s）兜底判定失配。
+     */
+    private fun updateEventFilter() {
+        val info = serviceInfo ?: return
+        info.packageNames = if (mode == AppState.Mode.WATCH) {
+            rules.map { it.packageName }.distinct().takeIf { it.isNotEmpty() }?.toTypedArray()
+        } else null
+        runCatching { serviceInfo = info }
     }
 
     fun applyDebug(enabled: Boolean) {
@@ -360,6 +337,7 @@ class WatcherService : AccessibilityService() {
 
     fun reloadRules() {
         rules = RuleStore.load(this)
+        handler.post { updateEventFilter() }
         scheduleResolve(100L)
     }
 
