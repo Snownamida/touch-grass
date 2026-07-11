@@ -1,0 +1,28 @@
+[
+  {
+    "id": "default-bili-story",
+    "name": "哔哩哔哩 短视频",
+    "packageName": "tv.danmaku.bili",
+    "matchers": [
+      {
+        "activities": ["com.bilibili.video.story.StoryVideoActivity"],
+        "requiredIds": [],
+        "forbiddenIds": []
+      }
+    ],
+    "createdAt": 0
+  },
+  {
+    "id": "default-xhs-video",
+    "name": "小红书 短视频",
+    "packageName": "com.xingin.xhs",
+    "matchers": [
+      {
+        "activities": ["com.xingin.matrix.detail.activity.DetailFeedActivity"],
+        "requiredIds": [],
+        "forbiddenIds": []
+      }
+    ],
+    "createdAt": 0
+  }
+]

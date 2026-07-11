@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">咋还在刷</string>
+    <string name="accessibility_service_label">🌱咋还在刷 · 短视频页面识别</string>
+    <string name="accessibility_service_description">识别你自己标记过的短视频页面并计时提醒。所有数据仅保存在本机，不联网、不上传。</string>
+</resources>
