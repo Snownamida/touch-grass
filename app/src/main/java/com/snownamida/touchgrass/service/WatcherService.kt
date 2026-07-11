@@ -39,6 +39,9 @@ class WatcherService : AccessibilityService() {
         private const val RESOLVE_DELAY_MS = 250L
         private const val CONTENT_THROTTLE_MS = 1000L
         private const val SNAPSHOT_DELAY_MS = 400L
+
+        /** 监测模式的兜底心跳：就算系统吞了无障碍事件（MIUI 后台管控），也每 3 秒主动查一次前台。 */
+        private const val HEARTBEAT_MS = 3000L
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -62,6 +65,15 @@ class WatcherService : AccessibilityService() {
     private var debugEnabled = false
     private var lastContentResolve = 0L
     private var lastLoggedFg: String? = null
+    private var lastEvalLine: String? = null
+
+    private val heartbeat = object : Runnable {
+        override fun run() {
+            if (mode != AppState.Mode.WATCH) return
+            resolveForegroundAndEvaluate()
+            handler.postDelayed(this, HEARTBEAT_MS)
+        }
+    }
 
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -158,7 +170,7 @@ class WatcherService : AccessibilityService() {
             currentPackage = fg
             currentActivity = lastActivityByPkg[fg]
         }
-        if (debugEnabled && currentPackage != lastLoggedFg) {
+        if (currentPackage != lastLoggedFg) {
             lastLoggedFg = currentPackage
             DebugLog.log("前台→ $currentPackage [${windowsBrief()}]")
         }
@@ -212,12 +224,13 @@ class WatcherService : AccessibilityService() {
                 reason = if (matched != null) "命中「${rule.name}」" else explainMiss(rule)
             }
         }
-        if (debugEnabled) {
-            val line = "${pkg?.substringAfterLast('.') ?: "?"}/" +
-                "${currentActivity?.substringAfterLast('.') ?: "?"} → $reason"
+        val line = "${pkg?.substringAfterLast('.') ?: "?"}/" +
+            "${currentActivity?.substringAfterLast('.') ?: "?"} → $reason"
+        if (line != lastEvalLine) {
+            lastEvalLine = line
             DebugLog.log(line)
-            debugOverlay?.setText(line)
         }
+        debugOverlay?.setText(line)
         tracker.onEvaluated(matched)
     }
 
@@ -286,15 +299,19 @@ class WatcherService : AccessibilityService() {
                 AppState.Mode.OFF -> {
                     captureOverlay?.hide()
                     tracker.forceEnd()
+                    handler.removeCallbacks(heartbeat)
                 }
                 AppState.Mode.CAPTURE -> {
                     tracker.forceEnd()
                     showCaptureOverlay()
+                    handler.removeCallbacks(heartbeat)
                     scheduleResolve(100L)
                 }
                 AppState.Mode.WATCH -> {
                     captureOverlay?.hide()
                     scheduleResolve(100L)
+                    handler.removeCallbacks(heartbeat)
+                    handler.postDelayed(heartbeat, HEARTBEAT_MS)
                 }
             }
             updateDebugOverlay()
