@@ -21,6 +21,7 @@ import com.snownamida.touchgrass.debug.DebugLog
 import com.snownamida.touchgrass.overlay.CaptureOverlay
 import com.snownamida.touchgrass.overlay.DebugOverlay
 import com.snownamida.touchgrass.overlay.InterventionOverlay
+import com.snownamida.touchgrass.overlay.KeepAliveOverlay
 import com.snownamida.touchgrass.overlay.ReminderOverlay
 import com.snownamida.touchgrass.overlay.TimerOverlay
 import com.snownamida.touchgrass.rules.Matcher
@@ -62,6 +63,7 @@ class WatcherService : AccessibilityService() {
     private var debugOverlay: DebugOverlay? = null
     private var interventionOverlay: InterventionOverlay? = null
     private var reminderOverlay: ReminderOverlay? = null
+    private var keepAliveOverlay: KeepAliveOverlay? = null
     private var debugEnabled = false
     private var lastContentResolve = 0L
     private var lastLoggedFg: String? = null
@@ -105,6 +107,7 @@ class WatcherService : AccessibilityService() {
         debugOverlay?.hide()
         interventionOverlay?.hide()
         reminderOverlay?.hide()
+        keepAliveOverlay?.hide()
         handler.removeCallbacksAndMessages(null)
         DebugLog.log("服务已断开")
         super.onDestroy()
@@ -300,11 +303,13 @@ class WatcherService : AccessibilityService() {
                     captureOverlay?.hide()
                     tracker.forceEnd()
                     handler.removeCallbacks(heartbeat)
+                    keepAliveOverlay?.hide()
                 }
                 AppState.Mode.CAPTURE -> {
                     tracker.forceEnd()
                     showCaptureOverlay()
                     handler.removeCallbacks(heartbeat)
+                    keepAliveOverlay?.hide()
                     scheduleResolve(100L)
                 }
                 AppState.Mode.WATCH -> {
@@ -312,6 +317,9 @@ class WatcherService : AccessibilityService() {
                     scheduleResolve(100L)
                     handler.removeCallbacks(heartbeat)
                     handler.postDelayed(heartbeat, HEARTBEAT_MS)
+                    if (keepAliveOverlay == null) keepAliveOverlay = KeepAliveOverlay(this)
+                    keepAliveOverlay!!.show()
+                    DebugLog.log("保活窗已挂载")
                 }
             }
             updateDebugOverlay()
